@@ -415,10 +415,10 @@ func setupBot(botKeyFile string) error {
 
 func setupCloseHandler() error {
 	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGKILL)
 	go func() {
-		<-c
-		fmt.Println("\r- Ctrl+C pressed in Terminal")
+		signal := <-c
+		log.Printf("Received %v signal, leaving...", signal)
 		appCancel()
 	}()
 	return nil
