@@ -27,6 +27,7 @@ type bulkMsg struct {
 	text string
 }
 
+var version = "0.1"
 var bot *tgbotapi.BotAPI
 var appPath string
 var appCtx context.Context
@@ -435,21 +436,23 @@ func exit() {
 
 func main() {
 	var err error
+	bootTime = time.Now()
+
+	log.Printf("Stellarium bot version: %s", version)
+
 	appPath, err = filepath.Abs(os.Args[0])
 	if err != nil {
 		log.Fatal("Can't get absolute path")
 	}
 	appPath = filepath.Dir(appPath)
-	log.Printf(appPath)
 
-	bootTime = time.Now()
 	defer exit()
 
 	flag.BoolVar(&testBot, "test", false, "Test mode")
 	flag.Parse()
 
 	if testBot {
-		log.Printf("Using test bot")
+		log.Printf("Running in test mode")
 	}
 
 	appCtx, appCancel = context.WithCancel(context.Background())
