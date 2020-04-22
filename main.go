@@ -27,7 +27,7 @@ type bulkMsg struct {
 	text string
 }
 
-var version = "0.1"
+var version = "0.2"
 var bot *tgbotapi.BotAPI
 var appPath string
 var appCtx context.Context
@@ -217,8 +217,8 @@ func dispatchPayment(op operations.Operation) {
 	if !ok {
 		return
 	}
-
-	// log.Printf("From:%s To:%s Amount:%s", payment.From, payment.To, payment.Amount)
+	setPaymentPageToken(payment.PagingToken())
+	//log.Printf("From:%s To:%s Amount:%s", payment.From, payment.To, payment.Amount)
 	chats := getChatsByAccount(payment.From)
 	if chats != nil {
 		asset := payment.Asset.Code
@@ -247,7 +247,7 @@ func dispatchPayment(op operations.Operation) {
 }
 
 func dispatchTrade(trade horizon.Trade) {
-
+	setTradePageToken(trade.PagingToken())
 	chats := getChatsByAccount(trade.BaseAccount)
 	if chats != nil {
 		baseAsset := trade.BaseAssetCode
@@ -313,7 +313,7 @@ func setupHorizon() error {
 		cnt := 0
 		for {
 			start := time.Now()
-			opRequest := horizonclient.OperationRequest{Cursor: "now"}
+			opRequest := horizonclient.OperationRequest{Cursor: getPaymentPageToken()}
 			err := client.StreamPayments(appCtx, opRequest, dispatchPayment)
 			if err != nil {
 				log.Printf("Horizon payments thread failure (%v) attempt %d", err, cnt)
@@ -341,7 +341,7 @@ func setupHorizon() error {
 		cnt := 0
 		for {
 			start := time.Now()
-			trRequest := horizonclient.TradeRequest{Cursor: "now"}
+			trRequest := horizonclient.TradeRequest{Cursor: getPaymentPageToken()}
 
 			err := client.StreamTrades(appCtx, trRequest, dispatchTrade)
 			if err != nil {

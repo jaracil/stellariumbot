@@ -3,7 +3,10 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,6 +22,8 @@ type chat struct {
 var rwLock sync.RWMutex
 var accounts map[string]map[int64]struct{}
 var chats map[int64]*chat
+var tradePageToken = "now"
+var paymentPageToken = "now"
 
 var db *sql.DB
 
@@ -28,6 +33,22 @@ func numAccounts() int {
 
 func numChats() int {
 	return len(chats)
+}
+
+func setTradePageToken(t string) {
+	tradePageToken = t
+}
+
+func setPaymentPageToken(t string) {
+	paymentPageToken = t
+}
+
+func getTradePageToken() string {
+	return tradePageToken
+}
+
+func getPaymentPageToken() string {
+	return paymentPageToken
 }
 
 func chatSanity(id int64, d time.Duration) bool {
@@ -139,6 +160,7 @@ func setupStorage(f string) (err error) {
 	accounts = make(map[string]map[int64]struct{})
 	chats = make(map[int64]*chat)
 
+	loadCheckpoint()
 	log.Printf("Opening database: %s", f)
 	db, err = sql.Open("sqlite3", f)
 	if err != nil {
@@ -158,7 +180,40 @@ func setupStorage(f string) (err error) {
 	return
 }
 
+func saveCheckpoint() {
+	err := ioutil.WriteFile(appPath+"/checkpoint", []byte(fmt.Sprintf("%s,%s,%d", paymentPageToken, tradePageToken, time.Now().Unix())), 0644)
+	if err != nil {
+		fmt.Printf("Fail saving checkpoint: %v", err)
+	} else {
+		fmt.Printf("Checkpoint saved")
+	}
+
+}
+
+func loadCheckpoint() {
+	data, err := ioutil.ReadFile(appPath + "/checkpoint")
+	if err != nil {
+		return
+	}
+	chunks := strings.Split(string(data), ",")
+	if len(chunks) != 3 {
+		return
+	}
+	ts, err := strconv.ParseInt(chunks[2], 10, 64)
+	if err != nil {
+		return
+	}
+	if (time.Now().Unix() - ts) > 300 {
+		log.Printf("Checkpoint older than 300 seconds... starting from now")
+		return
+	}
+	paymentPageToken = chunks[0]
+	tradePageToken = chunks[1]
+	log.Printf("Resume from Payment:%s Trade:%s", paymentPageToken, tradePageToken)
+}
+
 func closeStorage() error {
+	saveCheckpoint()
 	if db != nil {
 		db.Close()
 		db = nil
