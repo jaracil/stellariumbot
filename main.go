@@ -225,11 +225,15 @@ func dispatchPayment(op operations.Operation) {
 		if payment.Asset.Type == "native" {
 			asset = "XLM"
 		}
+		str := fmt.Sprintf("Sent %s %s to %s", payment.Amount, asset, payment.To)
+		if payment.Transaction != nil {
+			if payment.Transaction.MemoType == "text" && payment.Transaction.Memo != "" {
+				str += fmt.Sprintf("\nMemo: %s", payment.Transaction.Memo)
+			}
+		}
 		for _, chatID := range chats {
-			str := fmt.Sprintf("Sent %s %s to %s", payment.Amount, asset, payment.To)
 			sendMessageBulk(chatID, str)
 		}
-
 	}
 
 	chats = getChatsByAccount(payment.To)
@@ -238,11 +242,15 @@ func dispatchPayment(op operations.Operation) {
 		if payment.Asset.Type == "native" {
 			asset = "XLM"
 		}
+		str := fmt.Sprintf("Received %s %s from %s", payment.Amount, asset, payment.From)
+		if payment.Transaction != nil {
+			if payment.Transaction.MemoType == "text" && payment.Transaction.Memo != "" {
+				str += fmt.Sprintf("\nMemo: %s", payment.Transaction.Memo)
+			}
+		}
 		for _, chatID := range chats {
-			str := fmt.Sprintf("Received %s %s from %s", payment.Amount, asset, payment.From)
 			sendMessageBulk(chatID, str)
 		}
-
 	}
 }
 
@@ -313,7 +321,7 @@ func setupHorizon() error {
 		cnt := 0
 		for {
 			start := time.Now()
-			opRequest := horizonclient.OperationRequest{Cursor: getPaymentPageToken()}
+			opRequest := horizonclient.OperationRequest{Cursor: getPaymentPageToken(), Join: "transactions"}
 			err := client.StreamPayments(appCtx, opRequest, dispatchPayment)
 			if err != nil {
 				log.Printf("Horizon payments thread failure (%v) attempt %d", err, cnt)
