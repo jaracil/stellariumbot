@@ -16,6 +16,7 @@ import (
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	"github.com/skip2/go-qrcode"
 	"github.com/stellar/go/clients/horizonclient"
 	"github.com/stellar/go/keypair"
 	"github.com/stellar/go/protocols/horizon"
@@ -27,7 +28,7 @@ type bulkMsg struct {
 	text string
 }
 
-var version = "0.2"
+var version = "0.3"
 var bot *tgbotapi.BotAPI
 var appPath string
 var appCtx context.Context
@@ -37,6 +38,8 @@ var bulkChan = make(chan *bulkMsg, 5000)
 var fatalErr error
 var testBot = false
 var bootTime time.Time
+
+const donationAccount = "GB2SWTADAJHQOE5L5DZ5RHFD3G2U6KW7HMDTIZWIWH5WDGZF4AAEAJGX"
 
 func uptime() string {
 	e := time.Since(bootTime)
@@ -86,7 +89,7 @@ func sendMessage(chat int64, text string) error {
 }
 
 func sendHelp(chat int64) error {
-	text := "/help\n/start stellar_address\n/stop\n/donate\nChat: https://t.me/stellariumchat"
+	text := "/start stellar_address -> Starts bot\n/stop -> Stops bot\n/qr -> Shows stellar address QR code\n/help -> This help\n/donate -> Donation account\nChat: https://t.me/stellariumchat"
 	return sendMessage(chat, text)
 }
 
@@ -197,10 +200,35 @@ func dispatchMessage(msg *tgbotapi.Message) {
 		sendMessage(msg.Chat.ID, "Bot stopped")
 
 	case "/donate":
-		sendMessage(msg.Chat.ID, "Donation account:\nGB2SWTADAJHQOE5L5DZ5RHFD3G2U6KW7HMDTIZWIWH5WDGZF4AAEAJGX\nThankyou!!")
+		png, err := qrcode.Encode(donationAccount, qrcode.Medium, -4)
+		if err != nil {
+			if err != nil {
+				sendMessage(msg.Chat.ID, "Sorry, Internal error")
+				return
+			}
+		}
+		img := tgbotapi.NewPhotoUpload(msg.Chat.ID, tgbotapi.FileBytes{Bytes: png, Name: "donation.png"})
+		img.Caption = "Donation account:\n" + donationAccount
+		bot.Send(img)
 
 	case "/stats":
 		sendMessage(msg.Chat.ID, fmt.Sprintf("Uptime: %s\nAccounts: %d\nChats: %d", uptime(), numAccounts(), numChats()))
+
+	case "/qr":
+		if chat == nil {
+			sendMessage(msg.Chat.ID, "You must /start bot first")
+			return
+		}
+		png, err := qrcode.Encode(chat.stellarAccount, qrcode.Medium, -4)
+		if err != nil {
+			if err != nil {
+				sendMessage(msg.Chat.ID, "Sorry, Internal error")
+				return
+			}
+		}
+		img := tgbotapi.NewPhotoUpload(msg.Chat.ID, tgbotapi.FileBytes{Bytes: png, Name: "wallet.png"})
+		img.Caption = chat.stellarAccount
+		bot.Send(img)
 
 	default:
 		sendMessage(msg.Chat.ID, "Invalid command")

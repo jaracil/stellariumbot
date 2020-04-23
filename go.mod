@@ -18,4 +18,5 @@ require (
 	golang.org/x/crypto v0.0.0-20200414173820-0848c9571904 // indirect
 	golang.org/x/sys v0.0.0-20200413165638-669c56c373c4 // indirect
 	gopkg.in/yaml.v2 v2.2.8 // indirect
+	github.com/skip2/go-qrcode v0.0.0-20191027152451-9434209cb086
 )
