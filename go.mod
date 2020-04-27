@@ -1,4 +1,4 @@
-module example.com/stellariumbot
+module github.com/jaracil/stellariumbot
 
 go 1.14
 
