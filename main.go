@@ -28,7 +28,7 @@ type bulkMsg struct {
 	text string
 }
 
-var version = "0.3"
+var version = "0.4"
 var bot *tgbotapi.BotAPI
 var appPath string
 var appCtx context.Context
@@ -51,6 +51,32 @@ func uptime() string {
 	e -= minutes * time.Minute
 
 	return fmt.Sprintf("%d Days %d Hours %d Minutes", days, hours, minutes)
+}
+
+func accountInfo(addr string) (horizon.Account, error) {
+	client := horizonclient.DefaultPublicNetClient
+
+	accountRequest := horizonclient.AccountRequest{AccountID: addr}
+	return client.AccountDetail(accountRequest)
+}
+
+func walletInfo(addr string) (string, error) {
+	ai, err := accountInfo(addr)
+	if err != nil {
+		return "", fmt.Errorf("Error obtaining wallet info")
+	}
+	ret := ""
+	ret += fmt.Sprintf("Wallet address: %s\n", addr)
+	ret += fmt.Sprintf("Balances:\n")
+	for _, balance := range ai.Balances {
+		code := balance.Code
+		typ := balance.Type
+		if typ == "native" {
+			code = "XLM"
+		}
+		ret += fmt.Sprintf("%s: %s\n", code, balance.Balance)
+	}
+	return ret, nil
 }
 
 func sendAction(chat int64, action string) (err error) {
@@ -89,7 +115,7 @@ func sendMessage(chat int64, text string) error {
 }
 
 func sendHelp(chat int64) error {
-	text := "/start stellar_address -> Starts bot\n/stop -> Stops bot\n/qr -> Shows stellar address QR code\n/help -> This help\n/donate -> Donation account\nChat: https://t.me/stellariumchat"
+	text := "/start stellar_address -> Starts bot\n/stop -> Stops bot\n/info -> Shows account info\n/qr -> Shows stellar address QR code\n/help -> This help\n/donate -> Donation account\nChat: https://t.me/stellariumchat"
 	return sendMessage(chat, text)
 }
 
@@ -210,6 +236,18 @@ func dispatchMessage(msg *tgbotapi.Message) {
 		img := tgbotapi.NewPhotoUpload(msg.Chat.ID, tgbotapi.FileBytes{Bytes: png, Name: "donation.png"})
 		img.Caption = "Donation account:\n" + donationAccount
 		bot.Send(img)
+
+	case "/info":
+		if chat == nil {
+			sendMessage(msg.Chat.ID, "You must /start bot first")
+			return
+		}
+		ret, err := walletInfo((chat.stellarAccount))
+		if err != nil {
+			sendMessage(msg.Chat.ID, "Error obtaining wallet info")
+			return
+		}
+		sendMessage(msg.Chat.ID, ret)
 
 	case "/stats":
 		sendMessage(msg.Chat.ID, fmt.Sprintf("Uptime: %s\nAccounts: %d\nChats: %d", uptime(), numAccounts(), numChats()))
