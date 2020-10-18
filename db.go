@@ -39,7 +39,7 @@ func setTradePageToken(t string) {
 	tradePageToken = t
 }
 
-func setPaymentPageToken(t string) {
+func setOperationPageToken(t string) {
 	paymentPageToken = t
 }
 
@@ -47,7 +47,7 @@ func getTradePageToken() string {
 	return tradePageToken
 }
 
-func getPaymentPageToken() string {
+func getOperationPageToken() string {
 	return paymentPageToken
 }
 

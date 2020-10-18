@@ -275,48 +275,77 @@ func dispatchMessage(msg *tgbotapi.Message) {
 
 }
 
-func dispatchPayment(op operations.Operation) {
-	if !op.IsTransactionSuccessful() {
+func dispatchOperation(operation operations.Operation) {
+	if !operation.IsTransactionSuccessful() {
 		return
-	}
-	payment, ok := op.(operations.Payment)
-	if !ok {
-		return
-	}
-	setPaymentPageToken(payment.PagingToken())
-	//log.Printf("From:%s To:%s Amount:%s", payment.From, payment.To, payment.Amount)
-	chats := getChatsByAccount(payment.From)
-	if chats != nil {
-		asset := payment.Asset.Code
-		if payment.Asset.Type == "native" {
-			asset = "XLM"
-		}
-		str := fmt.Sprintf("Sent %s %s to %s", payment.Amount, asset, payment.To)
-		if payment.Transaction != nil {
-			if payment.Transaction.MemoType == "text" && payment.Transaction.Memo != "" {
-				str += fmt.Sprintf("\nMemo: %s", payment.Transaction.Memo)
-			}
-		}
-		for _, chatID := range chats {
-			sendMessageBulk(chatID, str)
-		}
 	}
 
-	chats = getChatsByAccount(payment.To)
-	if chats != nil {
-		asset := payment.Asset.Code
-		if payment.Asset.Type == "native" {
-			asset = "XLM"
-		}
-		str := fmt.Sprintf("Received %s %s from %s", payment.Amount, asset, payment.From)
-		if payment.Transaction != nil {
-			if payment.Transaction.MemoType == "text" && payment.Transaction.Memo != "" {
-				str += fmt.Sprintf("\nMemo: %s", payment.Transaction.Memo)
+	setOperationPageToken(operation.PagingToken())
+
+	switch op := operation.(type) {
+
+	case operations.Payment:
+		//log.Printf("From:%s To:%s Amount:%s", payment.From, payment.To, payment.Amount)
+		chats := getChatsByAccount(op.From)
+		if chats != nil {
+			asset := op.Asset.Code
+			if op.Asset.Type == "native" {
+				asset = "XLM"
+			}
+			str := fmt.Sprintf("Sent %s %s to %s", op.Amount, asset, op.To)
+			if op.Transaction != nil {
+				if op.Transaction.MemoType == "text" && op.Transaction.Memo != "" {
+					str += fmt.Sprintf("\nMemo: %s", op.Transaction.Memo)
+				}
+			}
+			for _, chatID := range chats {
+				sendMessageBulk(chatID, str)
 			}
 		}
-		for _, chatID := range chats {
-			sendMessageBulk(chatID, str)
+
+		chats = getChatsByAccount(op.To)
+		if chats != nil {
+			asset := op.Asset.Code
+			if op.Asset.Type == "native" {
+				asset = "XLM"
+			}
+			str := fmt.Sprintf("Received %s %s from %s", op.Amount, asset, op.From)
+			if op.Transaction != nil {
+				if op.Transaction.MemoType == "text" && op.Transaction.Memo != "" {
+					str += fmt.Sprintf("\nMemo: %s", op.Transaction.Memo)
+				}
+			}
+			for _, chatID := range chats {
+				sendMessageBulk(chatID, str)
+			}
 		}
+	case operations.CreateAccount:
+		chats := getChatsByAccount(op.Funder)
+		if chats != nil {
+			str := fmt.Sprintf("Create account %s with %s XLM", op.Account, op.StartingBalance)
+			if op.Transaction != nil {
+				if op.Transaction.MemoType == "text" && op.Transaction.Memo != "" {
+					str += fmt.Sprintf("\nMemo: %s", op.Transaction.Memo)
+				}
+			}
+			for _, chatID := range chats {
+				sendMessageBulk(chatID, str)
+			}
+		}
+
+		chats = getChatsByAccount(op.Account)
+		if chats != nil {
+			str := fmt.Sprintf("Account created by funder %s with %s XLM", op.Funder, op.StartingBalance)
+			if op.Transaction != nil {
+				if op.Transaction.MemoType == "text" && op.Transaction.Memo != "" {
+					str += fmt.Sprintf("\nMemo: %s", op.Transaction.Memo)
+				}
+			}
+			for _, chatID := range chats {
+				sendMessageBulk(chatID, str)
+			}
+		}
+
 	}
 }
 
@@ -387,8 +416,8 @@ func setupHorizon() error {
 		cnt := 0
 		for {
 			start := time.Now()
-			opRequest := horizonclient.OperationRequest{Cursor: getPaymentPageToken(), Join: "transactions"}
-			err := client.StreamPayments(appCtx, opRequest, dispatchPayment)
+			opRequest := horizonclient.OperationRequest{Cursor: getOperationPageToken(), Join: "transactions"}
+			err := client.StreamOperations(appCtx, opRequest, dispatchOperation)
 			if err != nil {
 				log.Printf("Horizon payments thread failure (%v) attempt %d", err, cnt)
 			}
@@ -415,7 +444,7 @@ func setupHorizon() error {
 		cnt := 0
 		for {
 			start := time.Now()
-			trRequest := horizonclient.TradeRequest{Cursor: getPaymentPageToken()}
+			trRequest := horizonclient.TradeRequest{Cursor: getOperationPageToken()}
 
 			err := client.StreamTrades(appCtx, trRequest, dispatchTrade)
 			if err != nil {
