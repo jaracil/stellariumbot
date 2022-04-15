@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -407,7 +408,14 @@ func dispatchTrade(trade horizon.Trade) {
 }
 
 func setupHorizon() error {
-	client := horizonclient.DefaultPublicNetClient
+	// client := horizonclient.DefaultPublicNetClient
+	client := &horizonclient.Client{
+		HorizonURL: "http://127.0.0.1:8000",
+		//HorizonURL: "https://stellar-horizon.satoshipay.io/",
+		//HorizonURL: "https://horizon.stellar.lobstr.co/",
+		//HorizonURL: "https://horizon.stellar.org/",
+		HTTP: http.DefaultClient,
+	}
 
 	// Payments
 	// wg.Add(1)
