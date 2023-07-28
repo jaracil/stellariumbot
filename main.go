@@ -77,10 +77,6 @@ func walletInfo(addr string) (string, error) {
 		}
 		ret += fmt.Sprintf("%s: %s\n", code, balance.Balance)
 	}
-	if len(ret) > 4000 {
-		ret = ret[:4000]
-		ret += "\n... truncated"
-	}
 	return ret, nil
 }
 
@@ -102,6 +98,11 @@ func sendMessage(chat int64, text string) error {
 				}
 			}
 		}
+	}
+
+	if len(text) > 4000 {
+		text = text[:4000]
+		text += "\n... truncated"
 	}
 
 	log.Printf("Sent to chat:%d text:%s", chat, strconv.Quote(text))
