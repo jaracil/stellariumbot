@@ -302,7 +302,7 @@ func dispatchOperation(operation operations.Operation) {
 			if err != nil {
 				return
 			}
-			if asset == "XLM" && v < 0.001 {
+			if (asset == "XLM" || asset == "USDC") && v < 0.001 {
 				log.Printf("SPAM: %s", str)
 				return
 			}
@@ -327,7 +327,7 @@ func dispatchOperation(operation operations.Operation) {
 			if err != nil {
 				return
 			}
-			if asset == "XLM" && v < 0.001 {
+			if (asset == "XLM" || asset == "USDC") && v < 0.001 {
 				log.Printf("SPAM: %s", str)
 				return
 			}
