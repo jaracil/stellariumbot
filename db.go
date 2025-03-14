@@ -128,7 +128,7 @@ func deleteChat(id int64) error {
 
 	chat := chats[id]
 	if chat == nil {
-		return fmt.Errorf("Chat not found")
+		return fmt.Errorf("chat not found")
 	}
 	_, err := db.Exec("delete from chats where id=?;", chat.id)
 	if err != nil {

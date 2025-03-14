@@ -64,11 +64,9 @@ func accountInfo(addr string) (horizon.Account, error) {
 func walletInfo(addr string) (string, error) {
 	ai, err := accountInfo(addr)
 	if err != nil {
-		return "", fmt.Errorf("Error obtaining wallet info")
+		return "", fmt.Errorf("error obtaining wallet info")
 	}
-	ret := ""
-	ret += fmt.Sprintf("Wallet address: %s\n", addr)
-	ret += fmt.Sprintf("Balances:\n")
+	ret := fmt.Sprintf("Wallet address: %s\nBalances:\n", addr)
 	for _, balance := range ai.Balances {
 		code := balance.Code
 		typ := balance.Type
@@ -234,10 +232,8 @@ func dispatchMessage(msg *tgbotapi.Message) {
 	case "/donate":
 		png, err := qrcode.Encode(donationAccount, qrcode.Medium, -4)
 		if err != nil {
-			if err != nil {
-				sendMessage(msg.Chat.ID, "Sorry, Internal error")
-				return
-			}
+			sendMessage(msg.Chat.ID, "Sorry, Internal error")
+			return
 		}
 		img := tgbotapi.NewPhotoUpload(msg.Chat.ID, tgbotapi.FileBytes{Bytes: png, Name: "donation.png"})
 		img.Caption = "Donation account:\n" + donationAccount
@@ -265,10 +261,8 @@ func dispatchMessage(msg *tgbotapi.Message) {
 		}
 		png, err := qrcode.Encode(chat.stellarAccount, qrcode.Medium, -4)
 		if err != nil {
-			if err != nil {
-				sendMessage(msg.Chat.ID, "Sorry, Internal error")
-				return
-			}
+			sendMessage(msg.Chat.ID, "Sorry, Internal error")
+			return
 		}
 		img := tgbotapi.NewPhotoUpload(msg.Chat.ID, tgbotapi.FileBytes{Bytes: png, Name: "wallet.png"})
 		img.Caption = chat.stellarAccount
@@ -336,7 +330,7 @@ func dispatchOperation(operation operations.Operation) {
 			if asset == "XLM" && v < 0.001 {
 				log.Printf("SPAM: %s", str)
 				return
-			}			
+			}
 			for _, chatID := range chats {
 				sendMessageBulk(chatID, str)
 			}
@@ -460,7 +454,7 @@ func setupHorizon() error {
 			}
 			if cnt > 10 {
 				//appCancel()
-				time.Sleep(30*time.Second)
+				time.Sleep(30 * time.Second)
 				//break
 			}
 		}
@@ -490,7 +484,7 @@ func setupHorizon() error {
 			}
 			if cnt > 10 {
 				//appCancel()
-				time.Sleep(30*time.Second)
+				time.Sleep(30 * time.Second)
 				//break
 			}
 		}
@@ -549,8 +543,8 @@ func setupBot(botKeyFile string) error {
 }
 
 func setupCloseHandler() error {
-	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGKILL)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	go func() {
 		signal := <-c
 		log.Printf("Received %v signal, leaving...", signal)
