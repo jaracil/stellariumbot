@@ -304,6 +304,14 @@ func dispatchOperation(operation operations.Operation) {
 					str += fmt.Sprintf("\nMemo: %s", op.Transaction.Memo)
 				}
 			}
+			v, err := strconv.ParseFloat(op.Amount, 64)
+			if err != nil {
+				return
+			}
+			if asset == "XLM" && v < 0.001 {
+				log.Printf("SPAM: %s", str)
+				return
+			}
 			for _, chatID := range chats {
 				sendMessageBulk(chatID, str)
 			}
@@ -321,6 +329,14 @@ func dispatchOperation(operation operations.Operation) {
 					str += fmt.Sprintf("\nMemo: %s", op.Transaction.Memo)
 				}
 			}
+			v, err := strconv.ParseFloat(op.Amount, 64)
+			if err != nil {
+				return
+			}
+			if asset == "XLM" && v < 0.001 {
+				log.Printf("SPAM: %s", str)
+				return
+			}			
 			for _, chatID := range chats {
 				sendMessageBulk(chatID, str)
 			}
@@ -443,8 +459,9 @@ func setupHorizon() error {
 				cnt = 0
 			}
 			if cnt > 10 {
-				appCancel()
-				break
+				//appCancel()
+				time.Sleep(30*time.Second)
+				//break
 			}
 		}
 		log.Printf("Horizon payment gorroutine done")
@@ -472,8 +489,9 @@ func setupHorizon() error {
 				cnt = 0
 			}
 			if cnt > 10 {
-				appCancel()
-				break
+				//appCancel()
+				time.Sleep(30*time.Second)
+				//break
 			}
 		}
 		log.Printf("Horizon trades gorroutine done")
