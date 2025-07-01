@@ -16,7 +16,7 @@ import (
 	"syscall"
 	"time"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/skip2/go-qrcode"
 	"github.com/stellar/go/clients/horizonclient"
 	"github.com/stellar/go/keypair"
@@ -87,7 +87,9 @@ func sendAction(chat int64, action string) (err error) {
 func sendMessage(chat int64, text string) error {
 	if chatSanity(chat, time.Hour*24) {
 		if chat < 0 { // Groups
-			n, err := bot.GetChatMembersCount(tgbotapi.ChatConfig{ChatID: chat})
+			config := tgbotapi.ChatMemberCountConfig{}
+			config.ChatID = chat
+			n, err := bot.GetChatMembersCount(config)
 			if err == nil {
 				if n < 2 {
 					log.Printf("Bot left alone. Autoremove chat:%d", chat)
@@ -229,13 +231,19 @@ func dispatchMessage(msg *tgbotapi.Message) {
 		}
 		sendMessage(msg.Chat.ID, "Bot stopped")
 
-	case "/donate":
-		png, err := qrcode.Encode(donationAccount, qrcode.Medium, -4)
+		case "/donate":
+		tmpfile, err := ioutil.TempFile("", "qr")
 		if err != nil {
 			sendMessage(msg.Chat.ID, "Sorry, Internal error")
 			return
 		}
-		img := tgbotapi.NewPhotoUpload(msg.Chat.ID, tgbotapi.FileBytes{Bytes: png, Name: "donation.png"})
+		defer os.Remove(tmpfile.Name())
+		err = qrcode.WriteFile(donationAccount, qrcode.Medium, -4, tmpfile.Name())
+		if err != nil {
+			sendMessage(msg.Chat.ID, "Sorry, Internal error")
+			return
+		}
+		img := tgbotapi.NewPhoto(msg.Chat.ID, tgbotapi.FilePath(tmpfile.Name()))
 		img.Caption = "Donation account:\n" + donationAccount
 		bot.Send(img)
 
@@ -259,12 +267,18 @@ func dispatchMessage(msg *tgbotapi.Message) {
 			sendMessage(msg.Chat.ID, "You must /start bot first")
 			return
 		}
-		png, err := qrcode.Encode(chat.stellarAccount, qrcode.Medium, -4)
+		tmpfile, err := ioutil.TempFile("", "qr")
 		if err != nil {
 			sendMessage(msg.Chat.ID, "Sorry, Internal error")
 			return
 		}
-		img := tgbotapi.NewPhotoUpload(msg.Chat.ID, tgbotapi.FileBytes{Bytes: png, Name: "wallet.png"})
+		defer os.Remove(tmpfile.Name())
+		err = qrcode.WriteFile(chat.stellarAccount, qrcode.Medium, -4, tmpfile.Name())
+		if err != nil {
+			sendMessage(msg.Chat.ID, "Sorry, Internal error")
+			return
+		}
+		img := tgbotapi.NewPhoto(msg.Chat.ID, tgbotapi.FilePath(tmpfile.Name()))
 		img.Caption = chat.stellarAccount
 		bot.Send(img)
 
@@ -433,19 +447,19 @@ func setupHorizon() error {
 	}
 
 	// Payments
-	// wg.Add(1)
+	wg.Add(1)
 	go func() {
-		// defer wg.Done()
+		defer wg.Done()
 		cnt := 0
 		for {
 			start := time.Now()
 			opRequest := horizonclient.OperationRequest{Cursor: getOperationPageToken(), Join: "transactions"}
 			err := client.StreamOperations(appCtx, opRequest, dispatchOperation)
-			if err != nil {
-				log.Printf("Horizon payments thread failure (%v) attempt %d", err, cnt)
-			}
 			if appCtx.Err() != nil {
 				break
+			}
+			if err != nil {
+				log.Printf("Horizon payments thread failure (%v) attempt %d", err, cnt)
 			}
 			if time.Since(start) < 30*time.Second {
 				cnt++
@@ -453,29 +467,27 @@ func setupHorizon() error {
 				cnt = 0
 			}
 			if cnt > 10 {
-				//appCancel()
 				time.Sleep(30 * time.Second)
-				//break
 			}
 		}
 		log.Printf("Horizon payment gorroutine done")
 	}()
 
 	// Trades
-	// wg.Add(1)
+	wg.Add(1)
 	go func() {
-		// defer wg.Done()
+		defer wg.Done()
 		cnt := 0
 		for {
 			start := time.Now()
-			trRequest := horizonclient.TradeRequest{Cursor: getOperationPageToken()}
+			trRequest := horizonclient.TradeRequest{Cursor: getTradePageToken()}
 
 			err := client.StreamTrades(appCtx, trRequest, dispatchTrade)
-			if err != nil {
-				log.Printf("Horizon trades thread failure (%v) attempt %d", err, cnt)
-			}
 			if appCtx.Err() != nil {
 				break
+			}
+			if err != nil {
+				log.Printf("Horizon trades thread failure (%v) attempt %d", err, cnt)
 			}
 			if time.Since(start) < 30*time.Second {
 				cnt++
@@ -483,9 +495,7 @@ func setupHorizon() error {
 				cnt = 0
 			}
 			if cnt > 10 {
-				//appCancel()
 				time.Sleep(30 * time.Second)
-				//break
 			}
 		}
 		log.Printf("Horizon trades gorroutine done")
@@ -516,10 +526,7 @@ func setupBot(botKeyFile string) error {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
-	updates, err := bot.GetUpdatesChan(u)
-	if err != nil {
-		return err
-	}
+	updates := bot.GetUpdatesChan(u)
 
 	wg.Add(1)
 	go func() {
