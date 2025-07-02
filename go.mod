@@ -8,7 +8,7 @@ require (
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
-	github.com/stellar/go v0.0.0-20250311234916-385ac5aca1a4
+	github.com/stellar/go v0.0.0-20250627171000-032c5f910271
 )
 
 require (

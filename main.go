@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	_ "net/http/pprof" // Importa esto para registrar los handlers de pprof
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -584,7 +585,15 @@ func main() {
 	defer exit()
 
 	flag.BoolVar(&testBot, "test", false, "Test mode")
+	var pprofEnabled = flag.Bool("pprof", false, "Enable pprof HTTP server on localhost:6060")
 	flag.Parse()
+
+	if *pprofEnabled {
+		go func() {
+			log.Println("Starting pprof server on localhost:6060")
+			log.Println(http.ListenAndServe("localhost:6060", nil))
+		}()
+	}
 
 	if testBot {
 		log.Printf("Running in test mode")
